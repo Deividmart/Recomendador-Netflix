@@ -1,0 +1,1001 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vecinos de Cine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Figtree:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: plataforma de streaming. Intro -> ¿quién está viendo? -> onboarding -> inicio (billboard + filas) -> ficha modal; Rayos X abre el algoritmo. Look oscuro deliberado de sala de cine. */
+:root {
+  --bg: #121014;
+  --bg-2: #18161b;
+  --card: #201d24;
+  --card-2: #2c2832;
+  --line: #3a3541;
+  --text: #f5f3f0;
+  --muted: #a8a3ae;
+  --red: #e4323c;
+  --red-2: #b8212a;
+  --green: #46d369;
+  --gold: #f5b84a;
+  --f-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+  --gutter-l: max(4vw, 16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(4vw, 16px, env(safe-area-inset-right, 0px));
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--f-body); overflow-x: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+img { display: block; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.screen[hidden] { display: none !important; }
+.pad { padding-left: max(16px, env(safe-area-inset-left, 0px), 4vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 4vw); }
+
+/* ---------- marca */
+.wordmark { font: 900 30px/1 var(--f-display); letter-spacing: .04em; color: var(--red); text-transform: uppercase; display: inline-flex; align-items: baseline; gap: 6px; text-shadow: 0 2px 18px rgba(228, 50, 60, .35); }
+.wordmark small { font: 700 13px var(--f-body); letter-spacing: .32em; color: var(--text); opacity: .8; text-shadow: none; }
+
+/* ---------- intro */
+#intro { position: fixed; inset: 0; z-index: 100; background: #000; display: grid; place-items: center; cursor: pointer; }
+#intro .big { font: 900 clamp(64px, 14vw, 190px)/.9 var(--f-display); color: var(--red); letter-spacing: .03em; text-transform: uppercase; position: relative; animation: zoomIn 2.2s cubic-bezier(.2, .7, .1, 1) forwards; }
+#intro .big::after { content: ""; position: absolute; inset: -20% -10%; background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, .55) 50%, transparent 65%); mix-blend-mode: overlay; animation: sweep 1.4s .5s ease-in-out forwards; transform: translateX(-120%); }
+#intro .sub { position: absolute; bottom: 12vh; font: 600 13px var(--f-body); letter-spacing: .45em; text-transform: uppercase; color: var(--muted); animation: fade 1s .6s both; }
+@keyframes zoomIn { 0% { transform: scale(.82); opacity: 0; filter: blur(8px); } 30% { opacity: 1; filter: blur(0); } 100% { transform: scale(1.04); opacity: 1; text-shadow: 0 0 60px rgba(228, 50, 60, .55); } }
+@keyframes sweep { to { transform: translateX(120%); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+#intro.out { animation: introOut .5s ease forwards; }
+@keyframes introOut { to { opacity: 0; visibility: hidden; } }
+
+/* ---------- ¿quién está viendo? */
+#perfiles { min-height: 100vh; display: grid; place-content: center; gap: 36px; text-align: center; padding-block: 48px; }
+#perfiles h1 { margin: 0; font: 500 clamp(30px, 4.6vw, 56px)/1.1 var(--f-body); letter-spacing: -.01em; }
+.who { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(14px, 2.4vw, 30px); }
+.who button { background: none; border: 0; padding: 0; display: grid; gap: 12px; justify-items: center; align-content: start; color: var(--muted); width: clamp(104px, 11vw, 152px); }
+.avatar { width: 100%; aspect-ratio: 1; border-radius: 8px; display: grid; place-items: center; position: relative; overflow: hidden; outline: 3px solid transparent; outline-offset: 0; transition: outline-color .15s, transform .15s; }
+.avatar svg { width: 64%; height: 64%; }
+.who button:hover .avatar, .who button:focus-visible .avatar { outline-color: var(--text); transform: scale(1.04); }
+.who button:hover, .who button:focus-visible { color: var(--text); }
+.who button:focus-visible { outline: none; }
+.who .name { font-size: clamp(14px, 1.3vw, 17px); }
+.who .live { font: 700 10px var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--red); margin-top: -8px; white-space: nowrap; }
+.ghost-btn { justify-self: center; background: none; border: 1px solid var(--muted); color: var(--muted); padding: 9px 22px; letter-spacing: .18em; text-transform: uppercase; font-size: 13px; }
+.ghost-btn:hover { color: var(--text); border-color: var(--text); }
+
+/* ---------- onboarding */
+#elegir { padding-bottom: 120px; }
+.ob-head { padding-block: 22px 8px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.ob-title { padding-block: 10px 18px; display: grid; gap: 6px; max-width: 900px; }
+.ob-title h1 { margin: 0; font: 800 clamp(28px, 4vw, 46px)/1.05 var(--f-body); letter-spacing: -.02em; text-wrap: balance; }
+.ob-title p { margin: 0; color: var(--muted); font-size: 17px; }
+.ob-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-bottom: 18px; }
+.searchbox { position: relative; flex: 1 1 280px; max-width: 420px; }
+.searchbox input { width: 100%; padding: 12px 16px 12px 42px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; color: var(--text); font: inherit; }
+.searchbox svg { position: absolute; left: 13px; top: 50%; translate: 0 -50%; width: 18px; height: 18px; color: var(--muted); pointer-events: none; }
+.searchbox input::placeholder { color: var(--muted); }
+.dropdown { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none; background: #1b191e; border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 24px 50px rgba(0, 0, 0, .6); max-height: 60vh; overflow: auto; }
+.dropdown button { width: 100%; display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; text-align: left; background: none; border: 0; padding: 6px; border-radius: 4px; }
+.dropdown button:hover, .dropdown button:focus-visible { background: var(--card-2); }
+.dropdown .thumb { width: 34px; aspect-ratio: 2/3; border-radius: 3px; overflow: hidden; background: var(--card); }
+.dropdown .thumb img, .dropdown .thumb .fb { width: 100%; height: 100%; object-fit: cover; }
+.dropdown small { color: var(--muted); font-size: 12px; }
+.dropdown .t { font-weight: 600; font-size: 14px; line-height: 1.25; }
+.dropdown .t span { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+
+.ob-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(104px, 12vw, 150px), 1fr)); gap: 12px; }
+.tile { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: var(--card); }
+.tile > button.pick { position: absolute; inset: 0; border: 0; padding: 0; background: none; width: 100%; }
+.tile .art, .card .art { position: absolute; inset: 0; }
+.art img { width: 100%; height: 100%; object-fit: cover; }
+.tile .art { transition: transform .25s ease, filter .25s ease; }
+.tile:hover .art { transform: scale(1.05); }
+.tile .veil { position: absolute; inset: 0; pointer-events: none; transition: background .2s; }
+.tile.like .veil { background: rgba(0, 0, 0, .45); box-shadow: inset 0 0 0 3px var(--text); }
+.tile.dislike .art { filter: grayscale(1) brightness(.45); }
+.tile.dislike .veil { box-shadow: inset 0 0 0 3px var(--muted); }
+.tile .check { position: absolute; inset: 0; display: none; place-items: center; pointer-events: none; }
+.tile .check span { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--text); color: var(--bg); box-shadow: 0 6px 20px rgba(0, 0, 0, .5); animation: pop .25s ease; }
+.tile.dislike .check span { background: var(--card-2); color: var(--text); border: 2px solid var(--muted); }
+.tile.like .check, .tile.dislike .check { display: grid; }
+.tile .check svg { width: 22px; height: 22px; }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } }
+.tile .nope { position: absolute; z-index: 2; right: 6px; top: 6px; width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .5); background: rgba(18, 16, 20, .7); display: grid; place-items: center; opacity: 0; transition: opacity .15s; }
+.tile .nope svg { width: 15px; height: 15px; }
+.tile:hover .nope, .tile .nope:focus-visible, .tile.dislike .nope { opacity: 1; }
+.tile .label { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 8px 7px; background: linear-gradient(transparent, rgba(0, 0, 0, .9)); font-size: 12px; font-weight: 600; line-height: 1.2; pointer-events: none; text-align: left; }
+.ob-bar { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; padding-block: 14px calc(14px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, rgba(10, 9, 12, .96) 30%); display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ob-bar .picked { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ob-bar .minis { display: flex; }
+.ob-bar .minis div { width: 30px; aspect-ratio: 2/3; border-radius: 3px; overflow: hidden; margin-right: -8px; box-shadow: 0 0 0 2px var(--bg); background: var(--card); }
+.ob-bar .minis img, .ob-bar .minis .fb { width: 100%; height: 100%; object-fit: cover; }
+.ob-bar .count { color: var(--muted); padding-left: 12px; }
+.ob-bar .count b { color: var(--text); }
+.btn { border: 0; border-radius: 4px; padding: 11px 26px; font-weight: 700; font-size: 16px; display: inline-flex; align-items: center; gap: 10px; transition: background .15s, transform .1s; white-space: nowrap; }
+.btn:active { transform: scale(.98); }
+.btn svg { width: 22px; height: 22px; }
+.btn.red { background: var(--red); color: #fff; }
+.btn.red:hover { background: var(--red-2); }
+.btn.white { background: #fff; color: #111; }
+.btn.white:hover { background: rgba(255, 255, 255, .78); }
+.btn.grey { background: rgba(109, 109, 110, .55); color: #fff; backdrop-filter: blur(4px); }
+.btn.grey:hover { background: rgba(109, 109, 110, .38); }
+.btn.round { width: 42px; height: 42px; padding: 0; border-radius: 50%; justify-content: center; background: rgba(42, 42, 42, .6); border: 2px solid rgba(255, 255, 255, .5); color: #fff; }
+.btn.round:hover { border-color: #fff; }
+.btn.round.on { background: #fff; color: #111; border-color: #fff; }
+.btn.round svg { width: 20px; height: 20px; }
+
+/* ---------- nav */
+nav.top { position: fixed; z-index: 40; top: 0; left: 0; right: 0; padding-top: env(safe-area-inset-top, 0px); transition: background .3s; background: linear-gradient(rgba(0, 0, 0, .75), transparent); }
+nav.top.solid { background: rgba(18, 16, 20, .97); box-shadow: 0 1px 0 rgba(255, 255, 255, .04); }
+nav.top .in { height: 64px; display: flex; align-items: center; gap: clamp(14px, 2.4vw, 36px); }
+nav.top .links { display: flex; gap: 20px; font-size: 14px; }
+nav.top .links button { background: none; border: 0; padding: 4px 0; color: #e5e5e5; }
+nav.top .links button:hover { color: var(--muted); }
+nav.top .links button.on { color: #fff; font-weight: 700; }
+nav.top .right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.icon-btn { background: none; border: 0; padding: 6px; display: grid; place-items: center; color: #fff; }
+.icon-btn svg { width: 22px; height: 22px; }
+.nav-search { position: relative; display: flex; align-items: center; }
+.nav-search input { width: 0; opacity: 0; padding: 7px 0; border: 1px solid transparent; background: rgba(0, 0, 0, .75); color: #fff; font: inherit; font-size: 14px; transition: width .3s, opacity .2s, padding .3s; }
+.nav-search.open input { width: min(260px, 50vw); opacity: 1; padding: 7px 10px 7px 36px; border-color: #fff; }
+.nav-search.open .icon-btn { position: absolute; left: 2px; }
+.nav-search .dropdown { left: auto; width: min(360px, 86vw); }
+.me { display: flex; align-items: center; gap: 6px; background: none; border: 0; }
+.me .avatar { width: 32px; border-radius: 4px; }
+.me .avatar svg { width: 70%; height: 70%; }
+@media (max-width: 760px) { nav.top .links { display: none; } }
+
+/* ---------- billboard */
+.billboard { position: relative; min-height: min(86vh, 760px); display: flex; align-items: flex-end; overflow: hidden; isolation: isolate; }
+.bb-bg { position: absolute; inset: -40px; z-index: -3; background-size: cover; background-position: center 20%; filter: blur(34px) saturate(1.35) brightness(.62); transform: scale(1.15); animation: kenburns 24s ease-in-out infinite alternate; }
+.bb-wall { position: absolute; z-index: -2; top: 0; bottom: 0; right: 0; width: min(62vw, 980px); display: flex; align-items: center; justify-content: center; perspective: 1400px; }
+.bb-poster { width: clamp(180px, 22vw, 330px); aspect-ratio: 2/3; border-radius: 10px; overflow: hidden; transform: rotateY(-16deg) rotateX(4deg); box-shadow: 0 50px 90px rgba(0, 0, 0, .75), 0 0 0 1px rgba(255, 255, 255, .08); animation: floaty 7s ease-in-out infinite alternate; position: relative; }
+.bb-poster img, .bb-poster .fb { width: 100%; height: 100%; object-fit: cover; }
+.bb-poster::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(255, 255, 255, .22), transparent 40%); }
+.con-fondo .bb-bg { filter: brightness(.85) saturate(1.1); inset: 0; transform: none; animation: kenburns2 30s ease-in-out infinite alternate; background-position: center 25%; }
+.con-fondo .bb-wall { display: none; }
+@keyframes kenburns2 { from { transform: scale(1); } to { transform: scale(1.08); } }
+.bb-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(18, 16, 20, .97) 0%, rgba(18, 16, 20, .78) 34%, rgba(18, 16, 20, .1) 66%), linear-gradient(0deg, var(--bg) 0%, transparent 32%); }
+@keyframes kenburns { from { transform: scale(1.15) translate(0, 0); } to { transform: scale(1.3) translate(-2%, -2%); } }
+@keyframes floaty { from { transform: rotateY(-16deg) rotateX(4deg) translateY(0); } to { transform: rotateY(-10deg) rotateX(2deg) translateY(-14px); } }
+.bb-content { width: 100%; padding-top: 120px; padding-bottom: clamp(70px, 12vh, 140px); display: grid; gap: 16px; max-width: 760px; position: relative; }
+.bb-tag { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: clamp(14px, 1.4vw, 19px); }
+.top10-badge { width: 30px; height: 34px; background: var(--red); border-radius: 3px; display: grid; place-content: center; text-align: center; line-height: .82; font: 900 10px var(--f-display); }
+.top10-badge b { font-size: 17px; display: block; }
+.bb-title { margin: 0; font: 900 clamp(46px, 7.4vw, 108px)/.88 var(--f-display); text-transform: uppercase; letter-spacing: .005em; text-wrap: balance; text-shadow: 0 6px 36px rgba(0, 0, 0, .6); }
+.bb-orig { color: var(--muted); font-size: 14px; margin-top: -6px; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 15px; color: #ddd; }
+.meta .match { color: var(--green); font-weight: 800; }
+.meta .box { border: 1px solid rgba(255, 255, 255, .45); padding: 0 6px; font-size: 12.5px; border-radius: 3px; }
+.meta .dot::before { content: "•"; color: var(--muted); margin-right: 12px; }
+.bb-syn { margin: 0; font-size: clamp(15px, 1.35vw, 19px); line-height: 1.45; max-width: 60ch; color: #eee; text-shadow: 0 2px 10px rgba(0, 0, 0, .6); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.bb-why { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.faces { display: flex; }
+.face { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--bg); margin-right: -8px; display: grid; place-items: center; font: 700 8.5px var(--f-mono); letter-spacing: -.04em; color: #fff; }
+.bb-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.coldstart { background: rgba(245, 184, 74, .12); border: 1px solid rgba(245, 184, 74, .4); color: var(--gold); padding: 10px 14px; border-radius: 6px; font-size: 14px; max-width: 60ch; }
+.coldstart b { color: #fff; }
+
+/* ---------- filas */
+.rows { position: relative; z-index: 2; margin-top: -70px; display: grid; gap: clamp(26px, 3.4vw, 44px); padding-bottom: 60px; }
+.row h2 { margin: 0 0 10px; font: 700 clamp(17px, 1.6vw, 22px)/1.2 var(--f-body); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.row h2 small { font-weight: 500; font-size: 13px; color: var(--muted); }
+.row h2 .pill { font: 700 10.5px var(--f-body); letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px; border-radius: 3px; background: var(--card-2); color: var(--muted); }
+.row h2 .pill.model { background: rgba(228, 50, 60, .18); color: #ff8d93; }
+.slider { position: relative; }
+.track { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(118px, 13.2vw, 196px); gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 10px var(--gutter-r) 22px var(--gutter-l); scroll-padding-left: var(--gutter-l); }
+.track::-webkit-scrollbar { display: none; }
+.track > * { scroll-snap-align: start; }
+.arrow { position: absolute; z-index: 3; top: 10px; bottom: 22px; width: max(3.4vw, 34px); border: 0; background: rgba(18, 16, 20, .6); color: #fff; opacity: 0; transition: opacity .2s, background .2s; display: grid; place-items: center; }
+.arrow svg { width: 28px; height: 28px; transition: transform .15s; }
+.arrow:hover svg { transform: scale(1.25); }
+.arrow.l { left: 0; } .arrow.r { right: 0; }
+.slider:hover .arrow, .arrow:focus-visible { opacity: 1; }
+@media (hover: none) { .arrow { display: none; } }
+
+.card { position: relative; aspect-ratio: 2/3; border-radius: 6px; overflow: hidden; background: var(--card); transition: transform .3s cubic-bezier(.2, .8, .2, 1), box-shadow .3s; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.card > button.open { position: absolute; inset: 0; border: 0; padding: 0; background: none; width: 100%; z-index: 1; }
+.card:hover, .card:focus-within { transform: scale(1.08); z-index: 2; box-shadow: 0 18px 40px rgba(0, 0, 0, .7); }
+.card .info { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 10px 10px; background: linear-gradient(transparent, rgba(0, 0, 0, .94) 55%); display: grid; gap: 6px; opacity: 0; transform: translateY(8px); transition: opacity .25s, transform .25s; pointer-events: none; z-index: 2; }
+.card:hover .info, .card:focus-within .info { opacity: 1; transform: none; }
+.card .info .quick { display: flex; gap: 6px; pointer-events: auto; }
+.card .info .quick .btn.round { width: 32px; height: 32px; border-width: 1.5px; }
+.card .info .quick .btn.round svg { width: 15px; height: 15px; }
+.card .info .t { font-weight: 700; font-size: 13px; line-height: 1.2; }
+.card .info .m { font-size: 12px; color: #ccc; display: flex; gap: 8px; flex-wrap: wrap; }
+.card .info .m .match { color: var(--green); font-weight: 800; }
+.card .new { position: absolute; z-index: 2; top: 0; left: 50%; translate: -50% 0; background: var(--red); color: #fff; font: 800 10px var(--f-body); letter-spacing: .08em; padding: 3px 8px; border-radius: 0 0 4px 4px; text-transform: uppercase; pointer-events: none; }
+.card.liked { box-shadow: 0 0 0 3px var(--green), 0 6px 16px rgba(0, 0, 0, .35); }
+.card.disliked .art { filter: grayscale(1) brightness(.5); }
+.card .rankbar { position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .15); pointer-events: none; }
+.card .rankbar i { display: block; height: 100%; background: var(--red); }
+
+/* top 10 */
+.track.top10 { grid-auto-columns: clamp(190px, 21vw, 300px); gap: 4px; }
+.t10 { position: relative; display: grid; grid-template-columns: 44% 56%; align-items: end; }
+.t10 .num { font: 900 clamp(130px, 15vw, 220px)/.74 var(--f-display); color: var(--bg); -webkit-text-stroke: 3px #59545f; text-align: right; letter-spacing: -.06em; margin-right: -14px; user-select: none; position: relative; z-index: 0; }
+.t10 .card { z-index: 1; }
+.t10:hover .num { -webkit-text-stroke-color: #8a8490; }
+
+/* fallback de póster (si no hay imagen) */
+.fb { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 10px 9px; background: radial-gradient(120% 70% at 85% 0%, hsl(var(--h) 70% 55% / .45), transparent 60%), linear-gradient(165deg, hsl(var(--h) 45% 26%), hsl(var(--h) 55% 9%)); text-align: left; }
+.fb .g { font: 600 9.5px var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: hsl(var(--h) 80% 82%); }
+.fb .n { font: 800 20px/.95 var(--f-display); text-transform: uppercase; color: #fff; overflow-wrap: anywhere; }
+.fb .n.m { font-size: 16px; } .fb .n.s { font-size: 13px; }
+.fb .y { font: 400 10.5px var(--f-mono); color: rgba(255, 255, 255, .6); }
+
+/* ---------- modal ficha */
+dialog { padding: 0; border: 0; background: transparent; color: var(--text); max-width: min(900px, calc(100vw - 24px)); width: 100%; max-height: calc(100vh - 40px); margin: 20px auto; overflow: visible; }
+dialog:focus, dialog:focus-visible, .sheet:focus, .sheet:focus-visible { outline: none; }
+dialog::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
+dialog[open] { animation: modalIn .28s cubic-bezier(.2, .8, .2, 1); }
+@keyframes modalIn { from { opacity: 0; transform: translateY(24px) scale(.97); } }
+.sheet { background: #181619; border-radius: 10px; overflow: hidden auto; max-height: calc(100vh - 40px); box-shadow: 0 30px 80px rgba(0, 0, 0, .8); }
+.sheet-hero { position: relative; overflow: hidden; isolation: isolate; padding: 34px clamp(18px, 4vw, 44px) 26px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(18px, 3vw, 34px); align-items: end; }
+.sheet-hero .blur { position: absolute; inset: -40px; z-index: -2; background-size: cover; background-position: center; filter: blur(30px) saturate(1.4) brightness(.55); }
+.sheet-hero .blur.nitido { inset: 0; filter: brightness(.6); background-position: center 25%; }
+.sheet-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #181619 2%, rgba(24, 22, 25, .35) 60%, rgba(24, 22, 25, .2)); }
+.sheet-hero .poster { width: clamp(120px, 20vw, 210px); aspect-ratio: 2/3; border-radius: 8px; overflow: hidden; box-shadow: 0 24px 50px rgba(0, 0, 0, .7); }
+.sheet-hero .poster img, .sheet-hero .poster .fb { width: 100%; height: 100%; object-fit: cover; }
+.sheet-hero h2 { margin: 0; font: 900 clamp(34px, 5vw, 62px)/.9 var(--f-display); text-transform: uppercase; text-wrap: balance; }
+.sheet-hero .orig { color: var(--muted); font-size: 14px; margin: 6px 0 12px; }
+.sheet-hero .acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+.close { position: absolute; z-index: 3; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 50%; border: 0; background: #181619; display: grid; place-items: center; }
+.close svg { width: 20px; height: 20px; }
+.sheet-body { padding: 4px clamp(18px, 4vw, 44px) 34px; display: grid; gap: 26px; }
+.sheet-body p.syn { margin: 0; font-size: 16px; line-height: 1.6; color: #e6e3e8; max-width: 70ch; }
+.sheet-body h3 { margin: 0 0 12px; font: 700 20px var(--f-body); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font-size: 12.5px; color: #ddd; background: var(--card-2); padding: 3px 9px; border-radius: 999px; }
+.why-box { background: var(--card); border-radius: 8px; padding: 18px; display: grid; gap: 14px; }
+.why-big { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; }
+.why-big > b { font: 900 46px/1 var(--f-display); color: var(--green); }
+.why-big > span { color: var(--muted); font-size: 14px; max-width: 46ch; }
+.why-big strong { color: #fff; }
+.votes { display: flex; flex-wrap: wrap; gap: 4px; }
+.votes i { width: 14px; height: 14px; border-radius: 3px; background: var(--card-2); }
+.votes i.y { background: var(--green); }
+.votes i.n { background: #5a5560; }
+.legend-s { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--muted); }
+.legend-s i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.neigh-mini { display: flex; flex-wrap: wrap; gap: 10px; }
+.neigh-mini div { display: grid; justify-items: center; gap: 3px; font-size: 11px; color: var(--muted); width: 58px; text-align: center; line-height: 1.2; }
+.neigh-mini .face { width: 40px; height: 40px; margin: 0; border: 0; font-size: 11px; }
+.formula { font: 13px/1.6 var(--f-mono); background: var(--bg); border-radius: 6px; padding: 12px 14px; overflow-x: auto; }
+.formula div { white-space: nowrap; }
+.formula b { color: var(--gold); font-weight: 600; }
+.formula .c { color: var(--muted); }
+.similar { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.similar .card:hover { transform: scale(1.04); }
+
+/* ---------- ajustes */
+.panel-pop { position: fixed; z-index: 45; top: calc(70px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px), 4vw); width: min(380px, calc(100vw - 32px)); background: #1b191e; border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, .7); }
+.panel-pop h3 { margin: 0; font: 800 22px var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.ctrl { display: grid; gap: 5px; }
+.ctrl label { display: flex; justify-content: space-between; font-weight: 600; font-size: 14px; }
+.ctrl output { font-family: var(--f-mono); color: var(--gold); }
+.ctrl input { width: 100%; accent-color: var(--red); }
+.ctrl small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+
+/* ---------- toast */
+.toast { position: fixed; z-index: 60; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); translate: -50% 0; background: #f5f3f0; color: #121014; padding: 12px 18px; border-radius: 6px; font-weight: 600; font-size: 14.5px; box-shadow: 0 16px 40px rgba(0, 0, 0, .5); display: flex; gap: 10px; align-items: center; max-width: calc(100vw - 32px); transition: opacity .3s, transform .3s; }
+.toast.hide { opacity: 0; transform: translateY(20px); pointer-events: none; }
+.toast b { color: var(--red); }
+
+/* ---------- rayos x */
+#rayos { padding-top: calc(96px + env(safe-area-inset-top, 0px)); padding-bottom: 60px; display: grid; gap: 26px; }
+.rx-head { display: grid; gap: 8px; max-width: 900px; }
+.rx-head h1 { margin: 0; font: 900 clamp(44px, 6vw, 84px)/.9 var(--f-display); text-transform: uppercase; }
+.rx-head h1 span { color: var(--red); }
+.rx-head p { margin: 0; color: var(--muted); font-size: 16px; max-width: 70ch; }
+.rx-pick { display: flex; gap: 8px; overflow-x: auto; padding: 6px 2px 10px; scrollbar-width: thin; }
+.rx-pick button { flex: 0 0 auto; width: 72px; aspect-ratio: 2/3; border-radius: 5px; overflow: hidden; border: 0; padding: 0; position: relative; opacity: .55; transition: opacity .15s, transform .15s; background: var(--card); }
+.rx-pick button img, .rx-pick button .fb { width: 100%; height: 100%; object-fit: cover; }
+.rx-pick button .fb .n { font-size: 11px; }
+.rx-pick button.on { opacity: 1; box-shadow: 0 0 0 3px var(--red); }
+.rx-pick button:hover { opacity: 1; }
+.rx-pick button span.r { position: absolute; left: 4px; top: 2px; font: 900 22px var(--f-display); text-shadow: 0 2px 6px #000; }
+.rx-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.rx { background: var(--bg-2); border: 1px solid #2a262e; border-radius: 10px; padding: 18px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+.rx h3 { margin: 0; display: flex; gap: 10px; align-items: baseline; font: 800 23px/1.05 var(--f-display); text-transform: uppercase; letter-spacing: .02em; }
+.rx h3 em { font: 600 13px var(--f-mono); color: var(--red); font-style: normal; }
+.rx > p { margin: 0; color: var(--muted); font-size: 14px; max-width: 64ch; }
+.rx > p b { color: var(--text); }
+canvas#matriz { width: 100%; height: auto; border-radius: 6px; image-rendering: pixelated; background: #1c1920; }
+.nlist { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.nlist li { display: grid; grid-template-columns: 34px 1fr auto; gap: 2px 10px; align-items: center; }
+.nlist .face { width: 34px; height: 34px; margin: 0; border: 0; grid-row: span 2; font-size: 10px; }
+.nlist .w { font-size: 14px; font-weight: 600; }
+.nlist .w small { font-weight: 400; color: var(--muted); }
+.nlist .s { font: 600 13px var(--f-mono); color: var(--gold); }
+.nlist .tags { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font: 11px var(--f-mono); padding: 1px 6px; border-radius: 4px; background: var(--card); color: var(--muted); }
+.tag.up { color: var(--green); } .tag.down { color: #ff8d93; }
+.bar { grid-column: 2 / -1; height: 4px; background: var(--card); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--red), var(--gold)); }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #2c2832; white-space: nowrap; }
+th { font: 600 10.5px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+td.n, th.n { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+td.yes { color: var(--green); } td.no { color: var(--muted); }
+#heap-svg svg { width: 100%; height: auto; display: block; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.stat { background: var(--bg); border-radius: 6px; padding: 8px 12px; display: grid; }
+.stat b { font: 800 26px/1 var(--f-display); }
+.stat span { font-size: 12px; color: var(--muted); }
+.evalbars { display: grid; gap: 12px; }
+.evalbars .m { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 4px 12px; align-items: center; font-size: 13px; }
+.evalbars .m > span { color: var(--muted); grid-row: span 2; }
+.evalbars .b { display: flex; align-items: center; gap: 8px; font: 12px var(--f-mono); }
+.evalbars .b i { height: 12px; border-radius: 2px; display: block; }
+footer.foot { color: var(--muted); font-size: 12.5px; padding-block: 24px 40px; border-top: 1px solid #25222a; display: grid; gap: 4px; }
+footer.foot b { color: #ddd; font-weight: 600; }
+@media (max-width: 900px) { .rx-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .bb-wall { display: none; }
+  .bb-shade { background: linear-gradient(0deg, var(--bg) 8%, rgba(18, 16, 20, .55) 60%, rgba(18, 16, 20, .3)); }
+  .sheet-hero { grid-template-columns: minmax(0, 1fr); }
+  .btn { padding: 10px 18px; font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M6 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L7.5 3.64A1 1 0 0 0 6 4.5z"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path fill="currentColor" d="M11 10.5h2V17h-2zM11 7h2v2h-2z"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 10v10H3V10h4zm0 0 4.2-7.2a1.8 1.8 0 0 1 3.3 1.2L13.6 9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 10v10H3V10h4zm0 0 4.2-7.2a1.8 1.8 0 0 1 3.3 1.2L13.6 9H19a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.8 20H7"/></g></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="m15.5 15.5 5 5"/></symbol>
+  <symbol id="i-tune" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="9" cy="17" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path stroke="currentColor" stroke-width="2.6" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-xray" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor"/><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"/></symbol>
+</svg>
+
+<!-- INTRO -->
+<div id="intro" role="button" tabindex="0" aria-label="Saltar intro">
+  <div class="big">Vecinos</div>
+  <div class="sub">de cine · filtrado colaborativo</div>
+</div>
+
+<!-- ¿QUIÉN ESTÁ VIENDO? -->
+<section id="perfiles" class="screen pad" hidden>
+  <h1>¿Quién está viendo?</h1>
+  <div class="who" id="who"></div>
+  <button class="ghost-btn" type="button" id="reset-publico">Reiniciar perfil del público</button>
+</section>
+
+<!-- ONBOARDING -->
+<section id="elegir" class="screen" hidden>
+  <div class="ob-head pad"><span class="wordmark">Vecinos <small>de cine</small></span><button class="btn grey" type="button" id="ob-volver">Cambiar perfil</button></div>
+  <div class="ob-title pad">
+    <h1 id="ob-h1">Elige 3 o más películas que te gusten</h1>
+    <p>Con eso buscamos a tus <b>vecinos de gustos</b> entre <span data-n="usuarios"></span> personas reales. Toca <svg width="13" height="13" style="vertical-align:-1px"><use href="#i-down"/></svg> si una no te gusta.</p>
+  </div>
+  <div class="ob-tools pad">
+    <div class="searchbox">
+      <svg><use href="#i-search"/></svg>
+      <input id="ob-buscar" type="search" placeholder="Busca entre todas las películas" autocomplete="off" aria-label="Buscar película">
+      <ul class="dropdown" id="ob-sug" hidden></ul>
+    </div>
+  </div>
+  <div class="ob-grid pad" id="ob-grid"></div>
+  <div class="ob-bar pad">
+    <div class="picked"><div class="minis" id="ob-minis"></div><span class="count" id="ob-count"></span></div>
+    <button class="btn red" type="button" id="ob-continuar">Ver mis recomendaciones</button>
+  </div>
+</section>
+
+<!-- INICIO -->
+<section id="inicio" class="screen" hidden>
+  <header class="billboard" id="billboard">
+    <div class="bb-bg" id="bb-bg"></div>
+    <div class="bb-wall"><div class="bb-poster" id="bb-poster"></div></div>
+    <div class="bb-shade"></div>
+    <div class="bb-content pad" id="bb-content"></div>
+  </header>
+  <div class="rows" id="rows"></div>
+  <footer class="foot pad" id="foot-inicio"></footer>
+</section>
+
+<!-- RAYOS X -->
+<section id="rayos" class="screen pad" hidden>
+  <div class="rx-head">
+    <h1>Rayos <span>X</span></h1>
+    <p>Lo que pasó por dentro para armar tu top 10, con los datos reales de MovieLens. Elige una película de tu top para ver su cálculo.</p>
+  </div>
+  <div class="rx-pick" id="rx-pick"></div>
+  <div class="rx-grid">
+    <article class="rx">
+      <h3><em>A</em>La matriz usuario × película</h3>
+      <p>Cada fila es una persona y cada columna una película; un punto es una calificación. <b>El <span data-n="vacio"></span> está vacío</b>: adivinar esos huecos es el trabajo del recomendador.</p>
+      <canvas id="matriz" width="10" height="10" aria-label="Matriz dispersa de usuarios por películas"></canvas>
+      <div class="legend-s"><span><i style="background:var(--green)"></i>tus “me gusta”</span><span><i style="background:#ff8d93"></i>tus “no me gusta”</span><span><i style="background:var(--gold)"></i>tus vecinos</span><span><i style="background:#fff"></i>película elegida</span></div>
+    </article>
+    <article class="rx">
+      <h3><em>B</em>Tus vecinos de gustos</h3>
+      <p id="rx-vec-intro"></p>
+      <ul class="nlist" id="rx-vecinos"></ul>
+    </article>
+    <article class="rx">
+      <h3><em>C</em><span id="rx-why-t">¿Por qué esta película?</span></h3>
+      <p>Cada vecino que la calificó con 4 o 5 estrellas <b>vota por ella</b>, y su voto pesa lo que se parece a ti.</p>
+      <div class="tbl" id="rx-why"></div>
+      <div class="formula" id="rx-math"></div>
+    </article>
+    <article class="rx">
+      <h3><em>D</em>El top 10 sale de un heap</h3>
+      <p>No se ordenan las <span data-n="peliculas"></span> películas. Un <b>min-heap de tamaño 10</b> guarda las mejores; la raíz es la más débil y es el umbral para entrar. Costo <b>O(n log K)</b> en vez de O(n log n).</p>
+      <div id="heap-svg"></div>
+      <div class="stats" id="heap-stats"></div>
+    </article>
+    <article class="rx" style="grid-column:1/-1">
+      <h3><em>E</em>¿Funciona de verdad?</h3>
+      <p>Escondimos el 20% de las calificaciones, entrenamos con el 80% y comparamos contra recomendar lo más popular.</p>
+      <div class="evalbars" id="evalbars"></div>
+    </article>
+  </div>
+  <footer class="foot" id="foot-rayos"></footer>
+</section>
+
+<nav class="top" id="nav" hidden>
+  <div class="in pad">
+    <span class="wordmark">Vecinos <small>de cine</small></span>
+    <div class="links">
+      <button type="button" data-go="inicio">Inicio</button>
+      <button type="button" data-go="elegir">Mis gustos</button>
+      <button type="button" data-go="rayos">Rayos X</button>
+    </div>
+    <div class="right">
+      <div class="nav-search" id="nav-search">
+        <button class="icon-btn" type="button" id="nav-search-btn" aria-label="Buscar"><svg><use href="#i-search"/></svg></button>
+        <input id="nav-buscar" type="search" placeholder="Títulos, géneros…" autocomplete="off" aria-label="Buscar película">
+        <ul class="dropdown" id="nav-sug" hidden></ul>
+      </div>
+      <button class="icon-btn" type="button" id="tune-btn" aria-label="Ajustes del algoritmo" aria-expanded="false"><svg><use href="#i-tune"/></svg></button>
+      <button class="me" type="button" id="me" aria-label="Cambiar perfil"></button>
+    </div>
+  </div>
+</nav>
+
+<div class="panel-pop" id="tune" hidden>
+  <h3>Ajustes del algoritmo</h3>
+  <div class="ctrl">
+    <label for="k">Vecinos consultados <output id="k-out">50</output></label>
+    <input id="k" type="range" min="5" max="150" step="5" value="50">
+    <small>Pocos: muy personal pero frágil. Muchos: estable pero genérico.</small>
+  </div>
+  <div class="ctrl">
+    <label for="alfa">Freno a lo popular <output id="alfa-out">0,3</output></label>
+    <input id="alfa" type="range" min="0" max="1" step="0.1" value="0.3">
+    <small>0: ganan los éxitos de taquilla. Alto: más descubrimiento, menos burbuja.</small>
+  </div>
+</div>
+
+<dialog id="ficha" aria-label="Ficha de la película"><div class="sheet" id="sheet"></div></dialog>
+<div class="toast hide" id="toast" role="status" aria-live="polite"></div>
+
+<!--__POSTERS__-->
+<script>
+const D = /*__DATOS__*/null;
+const POSTERS = (window.POSTERS ||= {});
+const NU = D.ratings.length, NI = D.peliculas.length, UMBRAL = 4, TOP = 10;
+const FONDOS = (window.FONDOS ||= {});
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (x, d = 2) => x.toLocaleString("es", { minimumFractionDigits: d, maximumFractionDigits: d });
+const estrellas = (r) => `${fmt(r, r % 1 ? 1 : 0)}★`;
+const ico = (id) => `<svg aria-hidden="true"><use href="#i-${id}"/></svg>`;
+
+// ============================================================ datos
+const promedio = new Float64Array(NU), norma = new Float64Array(NU);
+const vistas = new Uint16Array(NI), gustos = new Uint16Array(NI);
+const porPeli = Array.from({ length: NI }, () => []);      // [usuario, rating, ...]
+const amadas = Array.from({ length: NU }, () => []);       // películas con rating >= 4 por usuario
+let total = 0, nRatings = 0;
+D.ratings.forEach((arr, u) => {
+  let s = 0;
+  for (let t = 1; t < arr.length; t += 2) s += arr[t];
+  const n = arr.length / 2;
+  promedio[u] = s / n; total += s; nRatings += n;
+  let q = 0;
+  for (let t = 0; t < arr.length; t += 2) {
+    const i = arr[t], r = arr[t + 1], c = r - promedio[u];
+    q += c * c; vistas[i]++;
+    if (r >= UMBRAL) { gustos[i]++; amadas[u].push(i); }
+    porPeli[i].push(u, r);
+  }
+  norma[u] = Math.sqrt(q) + 1e-9;
+});
+const PROMEDIO_GLOBAL = total / nRatings;
+const populares = [...Array(NI).keys()].sort((a, b) => vistas[b] - vistas[a]);
+const titulo = (i) => D.es[i] || D.peliculas[i][0];
+const original = (i) => D.peliculas[i][0];
+const anio = (i) => D.peliculas[i][1];
+const generos = (i) => { const m = D.peliculas[i][2]; return D.generos.filter((_, g) => m & (1 << g) && g); };
+
+function ratingDe(u, i) {
+  const a = D.ratings[u]; let lo = 0, hi = a.length / 2 - 1;
+  while (lo <= hi) { const m = (lo + hi) >> 1, x = a[2 * m]; if (x === i) return a[2 * m + 1]; if (x < i) lo = m + 1; else hi = m - 1; }
+  return 0;
+}
+
+// ============================================================ heap: top-K sin ordenar todo
+function topK(n, K, puntaje, sirve) {
+  const h = []; let revisados = 0, entraron = 0, expulsados = 0;
+  const sube = (i) => { while (i > 0) { const p = (i - 1) >> 1; if (h[p].s <= h[i].s) break; [h[p], h[i]] = [h[i], h[p]]; i = p; } };
+  const baja = (i) => { for (;;) { const l = 2 * i + 1, r = l + 1; let m = i;
+    if (l < h.length && h[l].s < h[m].s) m = l; if (r < h.length && h[r].s < h[m].s) m = r;
+    if (m === i) break; [h[m], h[i]] = [h[i], h[m]]; i = m; } };
+  for (let i = 0; i < n; i++) {
+    if (!sirve(i)) continue;
+    revisados++; const s = puntaje(i);
+    if (h.length < K) { h.push({ i, s }); sube(h.length - 1); entraron++; }
+    else if (s > h[0].s) { h[0] = { i, s }; baja(0); entraron++; expulsados++; }
+  }
+  return { heap: h.map((x) => ({ ...x })), orden: [...h].sort((a, b) => b.s - a.s), revisados, entraron, expulsados };
+}
+
+// ============================================================ modelo: filtrado colaborativo user-based
+let K = 50, ALFA = 0.3;
+function recomendar(perfil) {
+  if (!perfil.size) return null;
+  // 1) similitud coseno: tu perfil (+1 / -1) contra los ratings centrados de cada persona
+  const punto = new Float64Array(NU);
+  for (const [j, signo] of perfil) {
+    const L = porPeli[j];
+    for (let t = 0; t < L.length; t += 2) { const u = L[t]; punto[u] += signo * (L[t + 1] - promedio[u]); }
+  }
+  const raiz = Math.sqrt(perfil.size), sim = new Float64Array(NU);
+  for (let u = 0; u < NU; u++) sim[u] = punto[u] / (norma[u] * raiz);
+  // 2) los K vecinos más parecidos (heap)
+  const vec = topK(NU, K, (u) => sim[u], (u) => sim[u] > 0).orden;
+  const pesoTotal = vec.reduce((a, v) => a + v.s, 0) || 1;
+  // 3) votos ponderados de los vecinos + rating estimado
+  const votos = new Float64Array(NI), num = new Float64Array(NI), den = new Float64Array(NI);
+  for (const { i: v, s: w } of vec) {
+    const a = D.ratings[v];
+    for (let t = 0; t < a.length; t += 2) {
+      const i = a[t], r = a[t + 1];
+      num[i] += w * (r - promedio[v]); den[i] += w;
+      if (r >= UMBRAL) votos[i] += w;
+    }
+  }
+  const freno = (i, alfa = ALFA) => Math.pow(gustos[i] + 5, alfa);
+  const puntaje = (i, alfa = ALFA) => votos[i] / freno(i, alfa);
+  const libre = (i) => votos[i] > 0 && !perfil.has(i);
+  // 4) top-10 con heap
+  const res = topK(NI, TOP, (i) => puntaje(i), libre);
+  const mas = topK(NI, 30, (i) => puntaje(i), libre).orden.slice(TOP).map((x) => x.i);
+  const enTop = new Set(res.orden.map((x) => x.i));
+  const joyas = topK(NI, 14, (i) => puntaje(i, 0.9), (i) => libre(i) && !enTop.has(i)).orden.map((x) => x.i);
+  const estimado = (i) => Math.min(5, Math.max(1, PROMEDIO_GLOBAL + (den[i] ? num[i] / den[i] : 0)));
+  const coincidencia = (i) => Math.round((100 * votos[i]) / pesoTotal);
+  return { sim, vec, pesoTotal, votos, freno, puntaje, estimado, coincidencia, res, mas, joyas };
+}
+
+// item-based: "quienes amaron X también amaron…" (coseno entre vectores de "me encantó")
+function parecidas(j, excluir, n = 14) {
+  const co = new Map(), L = porPeli[j];
+  for (let t = 0; t < L.length; t += 2) if (L[t + 1] >= UMBRAL) for (const i of amadas[L[t]]) co.set(i, (co.get(i) || 0) + 1);
+  const cand = [];
+  for (const [i, c] of co) if (i !== j && c >= 4 && !excluir.has(i)) cand.push({ i, s: c / Math.sqrt(gustos[i] * gustos[j]) });
+  return cand.sort((a, b) => b.s - a.s).slice(0, n).map((x) => x.i);
+}
+
+// ============================================================ perfiles
+const CARAS = [
+  '<circle cx="35" cy="40" r="6" fill="#fff"/><circle cx="65" cy="40" r="6" fill="#fff"/><path d="M30 64q20 18 40 0" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>',
+  '<rect x="27" y="35" width="14" height="8" rx="4" fill="#fff"/><rect x="59" y="35" width="14" height="8" rx="4" fill="#fff"/><path d="M32 66h36" stroke="#fff" stroke-width="6" stroke-linecap="round"/>',
+  '<circle cx="35" cy="42" r="7" fill="none" stroke="#fff" stroke-width="5"/><circle cx="65" cy="42" r="7" fill="none" stroke="#fff" stroke-width="5"/><circle cx="50" cy="68" r="7" fill="#fff"/>',
+  '<path d="M27 40l14 6M73 40l-14 6" stroke="#fff" stroke-width="6" stroke-linecap="round"/><path d="M32 70q18-14 36 0" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>',
+  '<circle cx="35" cy="40" r="6" fill="#fff"/><path d="M58 40h14" stroke="#fff" stroke-width="6" stroke-linecap="round"/><path d="M34 62q16 14 34-2" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>',
+  '<path d="M22 36q13-10 26 0v8q-13 8-26 0zM52 36q13-10 26 0v8q-13 8-26 0z" fill="#fff"/><path d="M34 64q16 12 32 0" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round"/>',
+];
+const PERFILES = [
+  { id: "publico", nombre: "Público", color: "linear-gradient(135deg,#e4323c,#7a1220)", cara: 0, live: true, ids: [] },
+  { id: "galaxia", nombre: "Fan de la galaxia", color: "linear-gradient(135deg,#2f80ed,#123a73)", cara: 1, ids: D.perfiles["Ciencia ficción"] },
+  { id: "peques", nombre: "Peques", color: "linear-gradient(135deg,#f2c94c,#c27c0e)", cara: 2, ids: D.perfiles["Infantil"] },
+  { id: "miedo", nombre: "Noche de miedo", color: "linear-gradient(135deg,#6d3fc0,#2a1250)", cara: 3, ids: D.perfiles["Terror"] },
+  { id: "sospecha", nombre: "Bajo sospecha", color: "linear-gradient(135deg,#27ae60,#0f5132)", cara: 4, ids: D.perfiles["Crimen"] },
+  { id: "heroes", nombre: "Superhéroes", color: "linear-gradient(135deg,#ff7a18,#af002d)", cara: 5, ids: D.perfiles["Superhéroes"] },
+];
+PERFILES.forEach((p) => { p.gustos = new Map(p.ids.map((i) => [i, 1])); p.extras = p.ids.filter((i) => !D.cartelera.includes(i)); });
+let P = PERFILES[0], M = null, topPrevio = null, nuevos = new Set(), seleccion = null;
+const avatar = (p) => `<div class="avatar" style="background:${p.color}"><svg viewBox="0 0 100 100">${CARAS[p.cara]}</svg></div>`;
+const faceColor = (u) => `hsl(${(u * 137.5) % 360} 45% 38%)`;
+const face = (u) => `<span class="face" style="background:${faceColor(u)}">${u + 1}</span>`;
+
+// ============================================================ piezas de UI
+const TONO = { "Animación": 165, "Infantil": 100, "Terror": 350, "Ciencia ficción": 192, "Western": 28, "Bélica": 72, "Musical": 318,
+  "Romance": 335, "Crimen": 4, "Cine negro": 235, "Misterio": 252, "Suspenso": 270, "Fantasía": 285, "Aventura": 38, "Acción": 16,
+  "Comedia": 48, "Documental": 205, "Drama": 220 };
+function arte(i, eager = false) {
+  if (POSTERS[i]) return `<img src="${POSTERS[i]}" alt="" ${eager ? "" : 'loading="lazy"'} decoding="async">`;
+  const g = generoPrincipal(i), t = titulo(i);
+  return `<div class="fb" style="--h:${TONO[g] ?? 220}"><span class="g">${esc(g)}</span><span class="n ${t.length > 30 ? "s" : t.length > 16 ? "m" : ""}">${esc(t)}</span><span class="y">${anio(i) || ""}</span></div>`;
+}
+const posterURL = (i) => POSTERS[i] || "";
+const PRIORIDAD = ["Animación", "Infantil", "Terror", "Ciencia ficción", "Western", "Bélica", "Musical", "Romance", "Crimen",
+  "Cine negro", "Misterio", "Suspenso", "Fantasía", "Aventura", "Acción", "Comedia", "Documental", "Drama"];
+const generoPrincipal = (i) => PRIORIDAD.find((g) => generos(i).includes(g)) || "Drama";
+
+function card(i, { rank = false } = {}) {
+  const s = P.gustos.get(i), pct = M && M.votos[i] > 0 ? M.coincidencia(i) : null;
+  const meta = [pct !== null ? `<span class="match">${pct}% para ti</span>` : "", anio(i) || "", generos(i)[0] || ""].filter(Boolean).join("<span>·</span>");
+  const c = `<div class="card ${s === 1 ? "liked" : s === -1 ? "disliked" : ""}">
+    <button class="open" type="button" data-open="${i}" aria-label="${esc(titulo(i))}"><div class="art">${arte(i)}</div></button>
+    ${nuevos.has(i) ? '<span class="new">Nuevo</span>' : ""}
+    <div class="info"><div class="quick">
+      <button class="btn round ${s === 1 ? "on" : ""}" type="button" data-like="${i}" aria-label="Me gusta">${ico("up")}</button>
+      <button class="btn round ${s === -1 ? "on" : ""}" type="button" data-nope="${i}" aria-label="No es para mí">${ico("down")}</button>
+      <button class="btn round" type="button" data-open="${i}" aria-label="Más información" style="margin-left:auto">${ico("info")}</button></div>
+      <span class="t">${esc(titulo(i))}</span><span class="m">${meta}</span></div>
+    ${pct !== null && !rank ? `<span class="rankbar"><i style="width:${pct}%"></i></span>` : ""}
+  </div>`;
+  return rank ? `<div class="t10"><span class="num" aria-hidden="true">${rank}</span>${c}</div>` : c;
+}
+
+function fila(titulo_, ids, { sub = "", pill = "", top10 = false } = {}) {
+  if (!ids.length) return "";
+  return `<section class="row"><h2 class="pad">${titulo_}${pill}${sub ? `<small>${sub}</small>` : ""}</h2>
+    <div class="slider"><button class="arrow l" type="button" aria-label="Anterior">${ico("left")}</button>
+    <div class="track ${top10 ? "top10" : ""}">${ids.map((i, n) => card(i, { rank: top10 ? n + 1 : 0 })).join("")}</div>
+    <button class="arrow r" type="button" aria-label="Siguiente">${ico("right")}</button></div></section>`;
+}
+
+// ============================================================ pantallas
+function mostrar(id) {
+  for (const s of ["perfiles", "elegir", "inicio", "rayos"]) $(s).hidden = s !== id;
+  $("nav").hidden = !(id === "inicio" || id === "rayos");
+  document.querySelectorAll("[data-go]").forEach((b) => b.classList.toggle("on", b.dataset.go === id));
+  $("tune").hidden = true;
+  if (id === "perfiles") pintarPerfiles();
+  if (id === "elegir") pintarElegir();
+  if (id === "inicio") pintarInicio();
+  if (id === "rayos") pintarRayos();
+  if (location.hash.slice(1) !== id) history.replaceState(null, "", "#" + id);
+  window.scrollTo(0, 0);
+}
+
+function pintarPerfiles() {
+  $("who").innerHTML = PERFILES.map((p, n) => `<button type="button" data-perfil="${n}">${avatar(p)}<span class="name">${esc(p.nombre)}</span>${p.live ? '<span class="live">● En vivo</span>' : ""}</button>`).join("");
+}
+
+// ---- onboarding
+function pintarElegir() {
+  const n = P.gustos.size, likes = [...P.gustos].filter(([, s]) => s > 0).length;
+  $("ob-h1").textContent = P.live ? "Elige 3 o más películas que te gusten" : `Gustos de “${P.nombre}”`;
+  const ids = [...P.extras, ...D.cartelera.filter((i) => !P.extras.includes(i))];
+  $("ob-grid").innerHTML = ids.map((i) => {
+    const s = P.gustos.get(i);
+    return `<div class="tile ${s === 1 ? "like" : s === -1 ? "dislike" : ""}">
+      <button class="pick" type="button" data-pick="${i}" aria-pressed="${s === 1}" aria-label="${esc(titulo(i))}"><div class="art">${arte(i)}</div></button>
+      <div class="veil"></div><div class="check"><span>${ico(s === -1 ? "x" : "check")}</span></div>
+      <button class="nope" type="button" data-nope="${i}" aria-label="No me gusta ${esc(titulo(i))}">${ico("down")}</button>
+      <div class="label">${esc(titulo(i))}</div></div>`;
+  }).join("");
+  $("ob-minis").innerHTML = [...P.gustos.keys()].slice(-8).map((i) => `<div>${arte(i)}</div>`).join("");
+  $("ob-count").innerHTML = n ? `<b>${likes}</b> me gusta${n - likes ? ` · <b>${n - likes}</b> no` : ""}` : "Aún no eliges nada";
+  $("ob-continuar").textContent = n ? "Ver mis recomendaciones" : "Continuar sin elegir";
+}
+
+// ---- inicio
+function recalcular() {
+  M = recomendar(P.gustos);
+  const top = M ? M.res.orden.map((x) => x.i) : [];
+  nuevos = topPrevio ? new Set(top.filter((i) => !topPrevio.includes(i))) : new Set();
+  topPrevio = top;
+  if (!top.includes(seleccion)) seleccion = top[0] ?? null;
+}
+
+function pintarInicio() {
+  const top = M ? M.res.orden.map((x) => x.i) : [];
+  const pop = populares.filter((i) => !P.gustos.has(i));
+  const heroId = top[0] ?? pop[0];
+  const backdrop = FONDOS[heroId], fondo = backdrop || posterURL(heroId);
+  $("billboard").classList.toggle("con-fondo", !!backdrop);
+  $("bb-bg").style.backgroundImage = fondo ? `url("${fondo}")` : `linear-gradient(135deg, hsl(${TONO[generoPrincipal(heroId)]} 50% 30%), #121014)`;
+  $("bb-poster").innerHTML = arte(heroId, true);
+  const meta = [M ? `<span class="match">${M.coincidencia(heroId)}% para ti</span>` : `<span class="match">Popular</span>`, anio(heroId) ? `<span>${anio(heroId)}</span>` : "",
+    `<span class="box">${generos(heroId).slice(0, 2).join(" · ") || "Película"}</span>`, M ? `<span>★ ${fmt(M.estimado(heroId), 1)} estimado</span>` : `<span>${vistas[heroId]} calificaciones</span>`].join("");
+  let why = "";
+  if (M) {
+    const quienes = M.vec.filter((v) => ratingDe(v.i, heroId) >= UMBRAL);
+    why = `<div class="bb-why"><span class="faces">${quienes.slice(0, 6).map((v) => face(v.i)).join("")}</span>
+      <span>A <b style="color:#fff">${quienes.length} de tus ${M.vec.length} vecinos</b> de gustos les encantó</span></div>`;
+  }
+  $("bb-content").innerHTML = `
+    <span class="bb-tag">${M ? '<span class="top10-badge">TOP<b>10</b></span>N.º 1 para ti' : '<span class="top10-badge">TOP<b>10</b></span>N.º 1 en popularidad'}</span>
+    <h1 class="bb-title" style="font-size:${titulo(heroId).length > 26 ? "clamp(38px, 5vw, 72px)" : titulo(heroId).length > 14 ? "clamp(44px, 6.2vw, 92px)" : ""}">${esc(titulo(heroId))}</h1>
+    ${titulo(heroId) !== original(heroId) ? `<div class="bb-orig">${esc(original(heroId))}</div>` : ""}
+    <div class="meta">${meta}</div>
+    ${D.sinopsis[heroId] ? `<p class="bb-syn">${esc(D.sinopsis[heroId])}</p>` : ""}
+    ${M ? why : `<div class="coldstart"><b>Arranque en frío.</b> Aún no sabemos nada de ti, así que solo podemos mostrarte lo popular. Elige películas en “Mis gustos”.</div>`}
+    <div class="bb-actions">
+      ${M ? `<button class="btn white" type="button" data-rayos="${heroId}">${ico("xray")}Por qué me la recomienda</button>` : `<button class="btn white" type="button" data-go="elegir">${ico("play")}Elegir mis películas</button>`}
+      <button class="btn grey" type="button" data-open="${heroId}">${ico("info")}Más información</button>
+    </div>`;
+
+  const excl = new Set([...P.gustos.keys()]);
+  let html = "";
+  if (M) {
+    html += fila("Tu Top 10", top, { pill: '<span class="pill model">Filtrado colaborativo</span>', top10: true });
+    const favs = [...P.gustos].filter(([, s]) => s > 0).map(([i]) => i);
+    favs.slice(-2).reverse().forEach((f) => {
+      html += fila(`Porque te gustó ${esc(titulo(f))}`, parecidas(f, excl), { pill: '<span class="pill">Item-based</span>', sub: "quienes la amaron también amaron" });
+    });
+    html += fila("Tus vecinos también aman", M.mas, { pill: '<span class="pill model">User-based</span>', sub: `lo siguiente en la lista de tus ${M.vec.length} vecinos` });
+    html += fila("Joyas escondidas para ti", M.joyas, { pill: '<span class="pill model">Freno alto a lo popular</span>', sub: "menos conocidas, igual de tu estilo" });
+    const cuenta = {};
+    for (const i of top) for (const g of generos(i)) cuenta[g] = (cuenta[g] || 0) + 1;
+    const g = Object.entries(cuenta).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (g) {
+      const gi = D.generos.indexOf(g), lista = topK(NI, 14, (i) => M.puntaje(i), (i) => M.votos[i] > 0 && !excl.has(i) && (D.peliculas[i][2] & (1 << gi))).orden.map((x) => x.i);
+      html += fila(`${esc(g)} para ti`, lista, { pill: '<span class="pill model">Tu género</span>' });
+    }
+  }
+  html += fila("Lo más popular", pop.slice(0, 14), { pill: '<span class="pill">Baseline</span>', sub: "lo mismo para todos, sin mirar tus gustos" });
+  $("rows").innerHTML = html;
+  pintarFooter("foot-inicio");
+}
+
+function pintarCifras() {
+  const valores = { usuarios: NU.toLocaleString("es"), peliculas: NI.toLocaleString("es"),
+    vacio: (100 * (1 - nRatings / (NU * NI))).toLocaleString("es", { maximumFractionDigits: 1 }) + "%" };
+  document.querySelectorAll("[data-n]").forEach((el) => { el.textContent = valores[el.dataset.n]; });
+}
+function pintarFooter(id) {
+  $(id).innerHTML = `<span><b>Modelo:</b> filtrado colaborativo user-based · similitud coseno sobre ratings centrados · votos ponderados de los k vecinos · top-K con min-heap.</span>
+    <span><b>Datos:</b> MovieLens latest-small (GroupLens, Universidad de Minnesota), calificaciones reales de 1996 a 2018: ${NU.toLocaleString("es")} personas, ${NI.toLocaleString("es")} películas con al menos 5 calificaciones, ${nRatings.toLocaleString("es")} calificaciones.</span>
+    <span><b>Pósters, títulos y sinopsis:</b> The Movie Database (TMDB). Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB.</span>`;
+}
+
+// ---- ficha
+function abrirFicha(i) {
+  const s = P.gustos.get(i), pct = M && M.votos[i] > 0 ? M.coincidencia(i) : null;
+  const fondo = posterURL(i);
+  let porque = "";
+  if (s) {
+    porque = `<div class="why-box"><span style="color:var(--muted)">Está en tu perfil: marcaste que ${s > 0 ? "te gusta" : "no te gusta"}. Por eso no te la recomendamos.</span></div>`;
+  } else if (M && M.votos[i] > 0) {
+    const filas = M.vec.map(({ i: v, s: w }) => ({ v, w, r: ratingDe(v, i) }));
+    const aman = filas.filter((x) => x.r >= UMBRAL), vieron = filas.filter((x) => x.r);
+    const puesto = M.res.orden.findIndex((x) => x.i === i) + 1;
+    porque = `<div class="why-box">
+      <div class="why-big"><b>${pct}%</b><span>de tus vecinos de gustos (ponderado por parecido) le dieron 4 o 5 estrellas.${puesto ? ` Está en el <strong>puesto ${puesto}</strong> de tu top 10.` : ""}</span></div>
+      <div class="votes" aria-label="Votos de tus ${M.vec.length} vecinos">${filas.map((x) => `<i class="${x.r >= UMBRAL ? "y" : x.r ? "n" : ""}" title="#${x.v + 1}: ${x.r ? estrellas(x.r) : "no la vio"}"></i>`).join("")}</div>
+      <div class="legend-s"><span><i style="background:var(--green)"></i>la aman (${aman.length})</span><span><i style="background:#5a5560"></i>la vieron, no tanto (${vieron.length - aman.length})</span><span><i style="background:var(--card-2)"></i>no la vieron (${filas.length - vieron.length})</span></div>
+      <div class="neigh-mini">${aman.slice(0, 8).map((x) => `<div>${face(x.v)}<span>${fmt(x.w, 2)}<br>${estrellas(x.r)}</span></div>`).join("")}</div>
+      <div class="formula"><div><span class="c">votos</span> = Σ similitud de quienes la aman = <b>${fmt(M.votos[i], 3)}</b></div>
+        <div><span class="c">puntaje</span> = votos ÷ (le gustó a ${gustos[i]} + 5)<sup>${fmt(ALFA, 1)}</sup> = <b>${fmt(M.puntaje(i), 4)}</b></div></div>
+    </div>`;
+  } else if (M) {
+    porque = `<div class="why-box"><span style="color:var(--muted)">Ninguno de tus ${M.vec.length} vecinos le dio 4 o 5 estrellas, así que el modelo no la recomienda.</span></div>`;
+  } else {
+    porque = `<div class="why-box"><span style="color:var(--muted)">Arranque en frío: sin gustos tuyos no hay vecinos que consultar.</span></div>`;
+  }
+  const sim = parecidas(i, new Set([...P.gustos.keys()]), 12);
+  $("sheet").innerHTML = `
+    <div class="sheet-hero">
+      <div class="blur ${FONDOS[i] ? "nitido" : ""}" style="${FONDOS[i] || fondo ? `background-image:url('${FONDOS[i] || fondo}')` : `background:hsl(${TONO[generoPrincipal(i)]} 50% 30%)`}"></div>
+      <button class="close" type="button" data-cerrar aria-label="Cerrar">${ico("x")}</button>
+      <div class="poster">${arte(i, true)}</div>
+      <div>
+        <h2>${esc(titulo(i))}</h2>
+        <div class="orig">${titulo(i) !== original(i) ? `Título original: ${esc(original(i))}` : "&nbsp;"}</div>
+        <div class="meta">${pct !== null ? `<span class="match">${pct}% para ti</span>` : ""}${anio(i) ? `<span>${anio(i)}</span>` : ""}${M ? `<span>★ ${fmt(M.estimado(i), 1)} estimado</span>` : ""}<span>${vistas[i]} calificaciones</span></div>
+        <div class="acts">
+          <button class="btn ${s === 1 ? "white" : "grey"}" type="button" data-like="${i}">${ico("up")}${s === 1 ? "Te gusta" : "Me gusta"}</button>
+          <button class="btn ${s === -1 ? "white" : "grey"}" type="button" data-nope="${i}">${ico("down")}No es para mí</button>
+          ${M && M.votos[i] > 0 && !s ? `<button class="btn grey" type="button" data-rayos="${i}">${ico("xray")}Rayos X</button>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="sheet-body">
+      ${D.sinopsis[i] ? `<p class="syn">${esc(D.sinopsis[i])}</p>` : ""}
+      <div class="chips">${generos(i).map((g) => `<span>${esc(g)}</span>`).join("")}</div>
+      <div><h3>Por qué te la recomendamos</h3>${porque}</div>
+      ${sim.length ? `<div><h3>Más títulos similares</h3><div class="similar">${sim.map((x) => card(x)).join("")}</div></div>` : ""}
+    </div>`;
+  const d = $("ficha");
+  if (!d.open) d.showModal();
+  $("sheet").scrollTop = 0;
+}
+
+// ---- rayos x
+const lienzo = $("matriz"), ctx = lienzo.getContext("2d"), MW = Math.ceil(NI / 2), MH = NU;
+lienzo.width = MW; lienzo.height = MH;
+let baseMatriz = null;
+function construirMatriz() {
+  const W = MW, H = MH, cnt = new Uint8Array(W * H);
+  D.ratings.forEach((a, u) => { for (let t = 0; t < a.length; t += 2) cnt[u * W + (a[t] >> 1)]++; });
+  const img = new ImageData(W, H);
+  for (let p = 0; p < W * H; p++) {
+    const c = cnt[p], k = c ? 0.45 + 0.55 * Math.min(1, c / 2) : 0;
+    img.data[p * 4] = 28 + k * (205 - 28); img.data[p * 4 + 1] = 25 + k * (196 - 25); img.data[p * 4 + 2] = 32 + k * (214 - 32); img.data[p * 4 + 3] = 255;
+  }
+  const off = document.createElement("canvas"); off.width = W; off.height = H; off.getContext("2d").putImageData(img, 0, 0);
+  return off;
+}
+function pintarRayos() {
+  baseMatriz ||= construirMatriz();
+  const top = M ? M.res.orden.map((x) => x.i) : [];
+  $("rx-pick").innerHTML = top.map((i, n) => `<button type="button" class="${i === seleccion ? "on" : ""}" data-sel="${i}" aria-label="${esc(titulo(i))}">${arte(i)}<span class="r">${n + 1}</span></button>`).join("")
+    || `<span style="color:var(--muted)">Elige películas en “Mis gustos” para ver el cálculo.</span>`;
+  // A
+  ctx.drawImage(baseMatriz, 0, 0);
+  if (M) { ctx.fillStyle = "rgba(245,184,74,.6)"; for (const { i: v } of M.vec) ctx.fillRect(0, v, MW, 1); }
+  for (const [j, s] of P.gustos) { ctx.fillStyle = s > 0 ? "rgba(70,211,105,.9)" : "rgba(255,141,147,.9)"; ctx.fillRect(j >> 1, 0, 1.5, MH); }
+  if (seleccion !== null) { ctx.fillStyle = "rgba(255,255,255,.95)"; ctx.fillRect(seleccion >> 1, 0, 1.5, MH); }
+  // B
+  if (!M) { $("rx-vec-intro").textContent = "Sin gustos no hay vecinos: arranque en frío."; $("rx-vecinos").innerHTML = ""; }
+  else {
+    $("rx-vec-intro").innerHTML = `Tu perfil se comparó con las <b>${NU} personas</b> con similitud coseno (1 = gustos idénticos). Estas son las más parecidas de las <b>${M.vec.length}</b> consultadas.`;
+    const max = M.vec[0]?.s || 1;
+    $("rx-vecinos").innerHTML = M.vec.slice(0, 6).map(({ i: v, s }) => {
+      const tags = [...P.gustos.keys()].map((j) => { const r = ratingDe(v, j); if (!r) return "";
+        const t = titulo(j); return `<span class="tag ${r > promedio[v] ? "up" : "down"}">${esc(t.length > 20 ? t.slice(0, 19) + "…" : t)} ${estrellas(r)}</span>`; }).join("");
+      return `<li>${face(v)}<span class="w">Usuario #${v + 1} <small>· ${D.ratings[v].length / 2} películas calificadas</small></span><span class="s">${fmt(s, 3)}</span>
+        <span class="bar"><i style="width:${(100 * s) / max}%"></i></span><span class="tags">${tags}</span></li>`;
+    }).join("");
+  }
+  // C
+  if (!M || seleccion === null) { $("rx-why-t").textContent = "¿Por qué esta película?"; $("rx-why").innerHTML = ""; $("rx-math").innerHTML = '<div class="c">Sin datos todavía.</div>'; }
+  else {
+    const i = seleccion;
+    $("rx-why-t").textContent = `¿Por qué ${titulo(i)}?`;
+    const filas = M.vec.map(({ i: v, s }) => ({ v, s, r: ratingDe(v, i) })).filter((x) => x.r), muestra = filas.slice(0, 7);
+    $("rx-why").innerHTML = `<table><thead><tr><th>Vecino</th><th class="n">Similitud</th><th class="n">Su rating</th><th class="n">Voto</th></tr></thead><tbody>
+      ${muestra.map(({ v, s, r }) => `<tr><td>#${v + 1}</td><td class="n">${fmt(s, 3)}</td><td class="n">${estrellas(r)}</td><td class="n ${r >= UMBRAL ? "yes" : "no"}">${r >= UMBRAL ? "+" + fmt(s, 3) : "no vota"}</td></tr>`).join("")}
+      ${filas.length > muestra.length ? `<tr><td colspan="4" style="color:var(--muted)">… y ${filas.length - muestra.length} vecinos más la calificaron</td></tr>` : ""}</tbody></table>`;
+    const puesto = M.res.orden.findIndex((x) => x.i === i) + 1, aman = filas.filter((x) => x.r >= UMBRAL).length;
+    $("rx-math").innerHTML = `<div><span class="c">la calificaron</span> ${filas.length} de ${M.vec.length} vecinos · <span class="c">la aman</span> ${aman}</div>
+      <div><span class="c">votos</span> = Σ similitud de quienes la aman = <b>${fmt(M.votos[i], 3)}</b></div>
+      <div><span class="c">freno</span> = (le gustó a ${gustos[i]} personas + 5)<sup>${fmt(ALFA, 1)}</sup> = ${fmt(M.freno(i), 2)}</div>
+      <div><span class="c">puntaje</span> = ${fmt(M.votos[i], 3)} ÷ ${fmt(M.freno(i), 2)} = <b>${fmt(M.puntaje(i), 4)}</b> → puesto <b>#${puesto}</b></div>
+      <div><span class="c">rating estimado</span> = <b>★ ${fmt(M.estimado(i), 1)}</b></div>`;
+  }
+  // D
+  if (!M || !M.res.heap.length) { $("heap-svg").innerHTML = ""; $("heap-stats").innerHTML = ""; }
+  else {
+    const h = M.res.heap, W = 640, fh = 66, cw = 78, ch = 40;
+    const pos = h.map((_, n) => { const lv = Math.floor(Math.log2(n + 1)), j = n - (2 ** lv - 1); return { x: ((j + 0.5) / 2 ** lv) * W, y: 26 + lv * fh }; });
+    const corto = (t) => (t.length > 12 ? t.slice(0, 11) + "…" : t);
+    let svg = `<svg viewBox="0 0 ${W} ${26 + 3 * fh + ch / 2 + 30}" role="img" aria-label="Min-heap con las 10 mejores películas">`;
+    h.forEach((_, n) => { if (n) { const p = pos[(n - 1) >> 1], q = pos[n]; svg += `<line x1="${p.x}" y1="${p.y + ch / 2}" x2="${q.x}" y2="${q.y - ch / 2}" stroke="#3a3541" stroke-width="1.5"/>`; } });
+    h.forEach((x, n) => { const { x: cx, y: cy } = pos[n], raiz = n === 0, sel = x.i === seleccion;
+      svg += `<rect x="${cx - cw / 2}" y="${cy - ch / 2}" width="${cw}" height="${ch}" rx="6" fill="${raiz ? "#3a1418" : "#2c2832"}" stroke="${sel ? "#ffffff" : raiz ? "#e4323c" : "#3a3541"}" stroke-width="${sel || raiz ? 2 : 1}"/>
+        <text x="${cx}" y="${cy - 3}" text-anchor="middle" fill="#f5f3f0" font-family="Figtree, sans-serif" font-size="10.5" font-weight="600">${esc(corto(titulo(x.i)))}</text>
+        <text x="${cx}" y="${cy + 12}" text-anchor="middle" fill="${raiz ? "#ff8d93" : "#a8a3ae"}" font-family="JetBrains Mono, monospace" font-size="10">${fmt(x.s, 3)}</text>`; });
+    svg += `<text x="${pos[0].x + cw / 2 + 10}" y="${pos[0].y + 4}" fill="#ff8d93" font-family="JetBrains Mono, monospace" font-size="11">← raíz: el umbral para entrar</text></svg>`;
+    $("heap-svg").innerHTML = svg;
+    $("heap-stats").innerHTML = [[M.res.revisados.toLocaleString("es"), "candidatas revisadas"], [M.res.entraron, "entraron al heap"], [M.res.expulsados, "expulsadas"], [TOP, "se quedan"]]
+      .map(([n, t]) => `<div class="stat"><b>${n}</b><span>${t}</span></div>`).join("");
+  }
+  // E
+  const E = D.metricas, nombres = Object.keys(E), colores = ["var(--red)", "#6d6873"];
+  $("evalbars").innerHTML = Object.keys(E[nombres[0]]).map((met) => {
+    const max = Math.max(...nombres.map((n) => E[n][met])), mejorBajo = met === "RMSE" || met === "MAE";
+    return `<div class="m"><span>${met}<br><small>${mejorBajo ? "más bajo es mejor" : "más alto es mejor"}</small></span>
+      ${nombres.map((n, k) => `<div class="b"><i style="width:${(70 * E[n][met]) / max}%;background:${colores[k]}"></i>${fmt(E[n][met], 3)} <span style="color:var(--muted)">${esc(n)}</span></div>`).join("")}</div>`;
+  }).join("");
+  pintarFooter("foot-rayos");
+}
+
+// ============================================================ acciones
+let toastT;
+function toast(html) { const t = $("toast"); t.innerHTML = html; t.classList.remove("hide"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.add("hide"), 3600); }
+
+function marcar(i, valor) {        // valor: 1 me gusta, -1 no me gusta (si ya estaba, se quita)
+  if (P.gustos.get(i) === valor) P.gustos.delete(i); else P.gustos.set(i, valor);
+  recalcular();
+}
+function marcarYRefrescar(i, valor) {
+  const antes = P.gustos.get(i);
+  marcar(i, valor);
+  const ahora = P.gustos.get(i);
+  if (!$("inicio").hidden) pintarInicio();
+  if (!$("rayos").hidden) pintarRayos();
+  if ($("ficha").open) abrirFicha(i);
+  const msg = ahora === 1 ? `Anotado: te gusta <b>${esc(titulo(i))}</b>.` : ahora === -1 ? `Anotado: <b>${esc(titulo(i))}</b> no es para ti.` : `Quitamos <b>${esc(titulo(i))}</b> de tu perfil.`;
+  toast(`${msg} ${nuevos.size ? `Entraron ${nuevos.size} películas nuevas a tu top 10.` : antes !== ahora ? "Tu top 10 se recalculó." : ""}`);
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button, [data-perfil]");
+  if (!t) { if (!e.target.closest(".nav-search")) cerrarBusquedas(); return; }
+  const d = t.dataset;
+  if (d.perfil !== undefined) {
+    P = PERFILES[+d.perfil]; topPrevio = null; seleccion = null; recalcular(); topPrevio = M ? M.res.orden.map((x) => x.i) : null;
+    actualizarMe(); mostrar(P.live && !P.gustos.size ? "elegir" : "inicio");
+  }
+  else if (d.go) { if (d.go !== "elegir") { recalcular(); nuevos = new Set(); } mostrar(d.go); }
+  else if (d.pick !== undefined) { const i = +d.pick; if (P.gustos.get(i) === 1) P.gustos.delete(i); else P.gustos.set(i, 1); pintarElegir(); }
+  else if (d.nope !== undefined && !$("elegir").hidden) { const i = +d.nope; if (P.gustos.get(i) === -1) P.gustos.delete(i); else P.gustos.set(i, -1); pintarElegir(); }
+  else if (d.like !== undefined) marcarYRefrescar(+d.like, 1);
+  else if (d.nope !== undefined) marcarYRefrescar(+d.nope, -1);
+  else if (d.open !== undefined) { cerrarBusquedas(); abrirFicha(+d.open); }
+  else if (d.rayos !== undefined) { seleccion = +d.rayos; if ($("ficha").open) $("ficha").close(); mostrar("rayos"); }
+  else if (d.sel !== undefined) { seleccion = +d.sel; pintarRayos(); }
+  else if (d.cerrar !== undefined) $("ficha").close();
+  else if (d.add !== undefined) {
+    const i = +d.add;
+    if (!$("elegir").hidden) { if (!D.cartelera.includes(i) && !P.extras.includes(i)) P.extras.unshift(i); P.gustos.set(i, 1); $("ob-buscar").value = ""; cerrarBusquedas(); pintarElegir(); }
+    else { $("nav-buscar").value = ""; cerrarBusquedas(); abrirFicha(i); }
+  }
+  else if (t.classList.contains("arrow")) { const tr = t.parentElement.querySelector(".track"); tr.scrollBy({ left: (t.classList.contains("l") ? -1 : 1) * tr.clientWidth * 0.85, behavior: "smooth" }); }
+});
+$("ficha").addEventListener("click", (e) => { if (e.target === $("ficha")) $("ficha").close(); });
+$("ob-continuar").addEventListener("click", () => { recalcular(); topPrevio = M ? M.res.orden.map((x) => x.i) : null; nuevos = new Set(); mostrar("inicio"); });
+$("ob-volver").addEventListener("click", () => mostrar("perfiles"));
+$("me").addEventListener("click", () => mostrar("perfiles"));
+$("reset-publico").addEventListener("click", () => { PERFILES[0].gustos.clear(); PERFILES[0].extras = []; toast("Perfil del público reiniciado."); });
+function actualizarMe() { $("me").innerHTML = avatar(P); }
+
+// ajustes
+$("tune-btn").addEventListener("click", () => { const p = $("tune"); p.hidden = !p.hidden; $("tune-btn").setAttribute("aria-expanded", String(!p.hidden)); });
+function ajustar() { recalcular(); if (!$("inicio").hidden) pintarInicio(); if (!$("rayos").hidden) pintarRayos(); }
+$("k").addEventListener("input", (e) => { K = +e.target.value; $("k-out").textContent = K; ajustar(); });
+$("alfa").addEventListener("input", (e) => { ALFA = +e.target.value; $("alfa-out").textContent = fmt(ALFA, 1); ajustar(); });
+
+// búsqueda
+const norm = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const indice = D.peliculas.map((p, i) => norm(p[0] + " " + (D.es[i] || "") + " " + generos(i).join(" ")));
+function buscar(q, lista) {
+  q = norm(q.trim());
+  if (q.length < 2) { lista.hidden = true; return; }
+  const hits = [];
+  for (const i of populares) { if (indice[i].includes(q)) hits.push(i); if (hits.length === 8) break; }
+  lista.innerHTML = hits.length ? hits.map((i) => `<li><button type="button" data-add="${i}"><span class="thumb">${arte(i)}</span>
+      <span class="t">${esc(titulo(i))}${titulo(i) !== original(i) ? `<span>${esc(original(i))}</span>` : ""}</span><small>${anio(i) || ""}</small></button></li>`).join("")
+    : `<li style="padding:10px;color:var(--muted)">Sin resultados.</li>`;
+  lista.hidden = false;
+}
+function cerrarBusquedas() { $("ob-sug").hidden = true; $("nav-sug").hidden = true; }
+$("ob-buscar").addEventListener("input", (e) => buscar(e.target.value, $("ob-sug")));
+$("nav-buscar").addEventListener("input", (e) => buscar(e.target.value, $("nav-sug")));
+$("nav-search-btn").addEventListener("click", () => { const s = $("nav-search"); s.classList.toggle("open"); if (s.classList.contains("open")) $("nav-buscar").focus(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { cerrarBusquedas(); $("tune").hidden = true; } });
+window.addEventListener("scroll", () => $("nav").classList.toggle("solid", scrollY > 40), { passive: true });
+
+// ============================================================ arranque
+pintarCifras();
+// el resto de pósters y los fondos llegan después; al terminar cada archivo se repinta la pantalla visible
+let repintarT;
+function repintarVisible() {
+  clearTimeout(repintarT);
+  repintarT = setTimeout(() => {
+    if (!$("inicio").hidden) pintarInicio();
+    else if (!$("elegir").hidden) pintarElegir();
+    else if (!$("rayos").hidden) pintarRayos();
+  }, 150);
+}
+window.addEventListener("load", () => {
+  (window.CARGA_DIFERIDA || []).reduce((previo, archivo) => previo.then(() => new Promise((listo) => {
+    const s = document.createElement("script");
+    s.src = archivo; s.onload = () => { repintarVisible(); listo(); }; s.onerror = listo;
+    document.body.appendChild(s);
+  })), Promise.resolve());
+});
+function terminarIntro() {
+  const intro = $("intro"); if (intro.classList.contains("out")) return;
+  intro.classList.add("out"); setTimeout(() => intro.remove(), 520);
+}
+$("intro").addEventListener("click", terminarIntro);
+$("intro").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") terminarIntro(); });
+const destino = location.hash.slice(1);
+if (["inicio", "rayos"].includes(destino)) { P = PERFILES[1]; recalcular(); topPrevio = M.res.orden.map((x) => x.i); actualizarMe(); mostrar(destino); terminarIntro(); }
+else { actualizarMe(); mostrar("perfiles"); setTimeout(terminarIntro, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 2500); }
+</script>

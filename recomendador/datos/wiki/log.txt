@@ -1,0 +1,8 @@
+Sin artículo por IMDb y sin buscar: 314 -> búsqueda en Wikidata
+  búsqueda pausada en 0/314 (se retoma en la siguiente corrida)
+Encontradas por búsqueda: 90
+Resúmenes pendientes: 806
+  resúmenes 25/806
+  resúmenes 50/806
+  resúmenes 75/806
+  resúmenes 100/806
